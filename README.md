@@ -63,3 +63,66 @@ Commit
 后续代码中会做进一步的论证。
 
  
+## Code
+### leaf-core子项目
+segment包中，model包下面有三个实体类，分别是[LeafAlloc](./leaf-core/src/main/java/com/sankuai/inf/leaf/segment/model/LeafAlloc.java)，[Segment](./leaf-core/src/main/java/com/sankuai/inf/leaf/segment/model/Segment.java)，[SegmentBuffer](./leaf-core/src/main/java/com/sankuai/inf/leaf/segment/model/SegmentBuffer.java)。请自行查看，不在赘述。 <br>
+dao包中，[IDAllocDao](./leaf-core/src/main/java/com/sankuai/inf/leaf/segment/dao/IDAllocDao.java)定义了数据库的相关操作。
+```java
+public interface IDAllocDao {
+    
+    /**
+     * 获取所有的LeafAlloc
+     *
+     * @return List<LeafAlloc>
+     */
+    List<LeafAlloc> getAllLeafAllocs();
+
+    /**
+     * 使用事务保证这两步的原子性(事务的隔离机制)
+     * 根据数据库中对应tag的step来更新max_value,同时获取 tag的信息
+     * 1. UPDATE leaf_alloc SET max_id = max_id + step WHERE biz_tag = #{tag}
+     * 2. SELECT biz_tag, max_id, step FROM leaf_alloc WHERE biz_tag = #{tag}
+     *
+     * @param tag
+     * @return
+     */
+    LeafAlloc updateMaxIdAndGetLeafAlloc(String tag);
+
+    /**
+     * 动态调整MaxId step周期性发生变化
+     *
+     * @param leafAlloc
+     * @return LeafAlloc
+     */
+    LeafAlloc updateMaxIdByCustomStepAndGetLeafAlloc(LeafAlloc leafAlloc);
+
+    /**
+     * 获取所有的tag
+     *
+     * @return List<String>
+     */
+    List<String> getAllTags();
+}
+```
+leaf包下面，有[IDGen](./leaf-core/src/main/java/com/sankuai/inf/leaf/IDGen.java)(ID生成器)，定义了两个方法。
+```java
+public interface IDGen {
+
+    /**
+     * 获取返回的结果集
+     *
+     * @param key
+     * @return Result
+     */
+    Result get(String key);
+
+    /**
+     * 初始化方法
+     *
+     * @return boolean
+     */
+    boolean init();
+}
+```
+基于MySQL的ID生成器的核心代码就是[SegmentIDGenImpl](./leaf-core/src/main/java/com/sankuai/inf/leaf/segment/SegmentIDGenImpl.java)，代码里面有明确的注释。<br>
+解析详情请见[SegmentIDGenImpl解析](./docs/SegmentIDGenImpl解析.md)。
