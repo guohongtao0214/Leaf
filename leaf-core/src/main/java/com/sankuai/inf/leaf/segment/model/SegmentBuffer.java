@@ -11,6 +11,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class SegmentBuffer {
 
+    /**
+     * 业务key
+     */
     private String key;
 
     /**
@@ -38,12 +41,24 @@ public class SegmentBuffer {
      */
     private final AtomicBoolean threadRunning;
 
+    /**
+     * 读写锁
+     */
     private final ReadWriteLock lock;
 
+    /**
+     * 号段长度
+     */
     private volatile int step;
 
+    /**
+     * 最小的号段长度
+     */
     private volatile int minStep;
 
+    /**
+     * 更新时间
+     */
     private volatile long updateTimestamp;
 
     public SegmentBuffer() {
@@ -77,6 +92,7 @@ public class SegmentBuffer {
 
     /**
      * 使用位运算 & 代替原来的 (currentPos + 1) % 2
+     * 指向下一个位置 一共就是 0 1 两个位置
      *
      * @return int
      */

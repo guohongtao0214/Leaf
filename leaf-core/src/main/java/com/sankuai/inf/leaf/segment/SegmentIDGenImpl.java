@@ -21,25 +21,43 @@ public class SegmentIDGenImpl implements IDGen {
      * IDCache未初始化成功时的异常码
      */
     private static final long EXCEPTION_ID_IDCACHE_INIT_FALSE = -1;
+
     /**
      * key不存在时的异常码
      */
     private static final long EXCEPTION_ID_KEY_NOT_EXISTS = -2;
+
     /**
      * SegmentBuffer中的两个Segment均未从DB中装载时的异常码
      */
     private static final long EXCEPTION_ID_TWO_SEGMENTS_ARE_NULL = -3;
+
     /**
      * 最大步长不超过100,0000
      */
     private static final int MAX_STEP = 1000000;
+
     /**
      * 一个Segment维持时间为15分钟
      */
     private static final long SEGMENT_DURATION = 15 * 60 * 1000L;
-    private ExecutorService service = new ThreadPoolExecutor(5, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), new UpdateThreadFactory());
+
+    /**
+     * 执行segment切换的线程池
+     * SynchronousQueue 内部只含有一个元素的队列  同步队列
+     */
+    private ExecutorService service = new ThreadPoolExecutor(5, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>(), new UpdateThreadFactory());
+
+    /**
+     * SegmentIDGenImpl是否初始化
+     */
     private volatile boolean initOK = false;
+
+    /**
+     * 存储SegmentBuffer的缓存
+     */
     private Map<String, SegmentBuffer> cache = new ConcurrentHashMap<>();
+
     private IDAllocDao dao;
 
     public static class UpdateThreadFactory implements ThreadFactory {
@@ -62,6 +80,7 @@ public class SegmentIDGenImpl implements IDGen {
         // 确保加载到kv后才初始化成功
         updateCacheFromDb();
         initOK = true;
+        // 每分钟更新Cache(数据库->cache)
         updateCacheFromDbAtEveryMinute();
         return initOK;
     }
@@ -70,25 +89,19 @@ public class SegmentIDGenImpl implements IDGen {
      * 使用定时线程,定时更新CacheTags(每分钟)
      */
     private void updateCacheFromDbAtEveryMinute() {
-        ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                Thread t = new Thread(r);
-                t.setName("check-idCache-thread");
-                t.setDaemon(true);
-                return t;
-            }
+        ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r);
+            t.setName("check-idCache-thread");
+            // 设置为守护线程
+            t.setDaemon(true);
+            return t;
         });
-        service.scheduleWithFixedDelay(new Runnable() {
-            @Override
-            public void run() {
-                updateCacheFromDb();
-            }
-        }, 60, 60, TimeUnit.SECONDS);
+        service.scheduleWithFixedDelay(() -> updateCacheFromDb(), 60, 60, TimeUnit.SECONDS);
     }
 
     private void updateCacheFromDb() {
         logger.info("update cache from db");
+        // 计时器
         StopWatch sw = new Slf4JStopWatch();
         try {
             List<String> dbTags = dao.getAllTags();
@@ -126,21 +139,23 @@ public class SegmentIDGenImpl implements IDGen {
 
     @Override
     public Result get(final String key) {
-        // 必须在 SegmentIDGenImpl 初始化后执行. init()方法
+        // 必须在SegmentIDGenImpl初始化后执行. init()方法
         if (!initOK) {
             return new Result(EXCEPTION_ID_IDCACHE_INIT_FALSE, Status.EXCEPTION);
         }
         // 通过缓存获取SegmentBuffer
         if (cache.containsKey(key)) {
-            // 从缓存中获取对应key的 SegmentBuffer
+            // 从缓存中获取对应key的SegmentBuffer
             SegmentBuffer buffer = cache.get(key);
             if (!buffer.isInitOk()) {
                 synchronized (buffer) {
-                    // 双重判断,避免重复执行SegmentBuffer的初始化操作
+                    // 双重判断，避免重复执行SegmentBuffer的初始化操作（并发情况下可能会出现重复执行）
                     if (!buffer.isInitOk()) {
                         try {
+                            // 更新segment
                             updateSegmentFromDb(key, buffer.getCurrent());
                             logger.info("Init buffer. Update leafkey {} {} from db", key, buffer.getCurrent());
+                            // buffer初始化完成
                             buffer.setInitOk(true);
                         } catch (Exception e) {
                             logger.warn("Init buffer {} exception", buffer.getCurrent(), e);
@@ -148,12 +163,14 @@ public class SegmentIDGenImpl implements IDGen {
                     }
                 }
             }
+            // 返回结果集
             return getIdFromSegmentBuffer(cache.get(key));
         }
         return new Result(EXCEPTION_ID_KEY_NOT_EXISTS, Status.EXCEPTION);
     }
 
     public void updateSegmentFromDb(String key, Segment segment) {
+        // 计时器
         StopWatch sw = new Slf4JStopWatch();
         SegmentBuffer buffer = segment.getBuffer();
         LeafAlloc leafAlloc;
@@ -164,8 +181,7 @@ public class SegmentIDGenImpl implements IDGen {
             // leafAlloc中的step为DB中的step
             buffer.setMinStep(leafAlloc.getStep());
         } else if (buffer.getUpdateTimestamp() == 0) {
-            // 第二次,需要准备next Segment
-            // 第二号段,设置updateTimestamp
+            // 第二次，设置updateTimestamp
             leafAlloc = dao.updateMaxIdAndGetLeafAlloc(key);
             buffer.setUpdateTimestamp(System.currentTimeMillis());
             buffer.setStep(leafAlloc.getStep());
@@ -211,9 +227,13 @@ public class SegmentIDGenImpl implements IDGen {
             buffer.setMinStep(leafAlloc.getStep());
         }
         // must set value before set max
+        // 计算segment的初始值
         long value = leafAlloc.getMaxId() - buffer.getStep();
+        // 设置segment的初始值
         segment.getValue().set(value);
+        // 设置segment的下放id的最大值
         segment.setMax(leafAlloc.getMaxId());
+        // 设置号段长度
         segment.setStep(buffer.getStep());
         sw.stop("updateSegmentFromDb", key + " " + segment);
     }

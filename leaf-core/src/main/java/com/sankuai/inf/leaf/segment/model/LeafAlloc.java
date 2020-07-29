@@ -1,9 +1,26 @@
 package com.sankuai.inf.leaf.segment.model;
 
+
 public class LeafAlloc {
+
+    /**
+     * 业务key，用来去分业务
+     */
     private String key;
+
+    /**
+     * 业务key目前所被分配的ID号段的最大值
+     */
     private long maxId;
+
+    /**
+     * 每次分配的号段长度
+     */
     private int step;
+
+    /**
+     * 更新时间
+     */
     private String updateTime;
 
     public String getKey() {

@@ -6,6 +6,11 @@ import java.util.List;
 
 public interface IDAllocDao {
 
+    /**
+     * 获取所有的LeafAlloc
+     *
+     * @return List<LeafAlloc>
+     */
     List<LeafAlloc> getAllLeafAllocs();
 
     /**
@@ -15,11 +20,22 @@ public interface IDAllocDao {
      * 2. SELECT biz_tag, max_id, step FROM leaf_alloc WHERE biz_tag = #{tag}
      *
      * @param tag
-     * @return
+     * @return LeafAlloc
      */
     LeafAlloc updateMaxIdAndGetLeafAlloc(String tag);
 
+    /**
+     * 动态调整MaxId step周期性发生变化
+     *
+     * @param leafAlloc
+     * @return LeafAlloc
+     */
     LeafAlloc updateMaxIdByCustomStepAndGetLeafAlloc(LeafAlloc leafAlloc);
 
+    /**
+     * 获取所有的tag
+     *
+     * @return List<String>
+     */
     List<String> getAllTags();
 }
