@@ -95,38 +95,27 @@ public class SegmentIDGenImpl implements IDGen {
             if (dbTags == null || dbTags.isEmpty()) {
                 return;
             }
-            List<String> cacheTags = new ArrayList<String>(cache.keySet());
-            Set<String> insertTagsSet = new HashSet<>(dbTags);
-            Set<String> removeTagsSet = new HashSet<>(cacheTags);
-            //db中新加的tags灌进cache   db中的keys - cache中的keys = 新增加的keys
-            for (int i = 0; i < cacheTags.size(); i++) {
-                String tmp = cacheTags.get(i);
-                if (insertTagsSet.contains(tmp)) {
-                    insertTagsSet.remove(tmp);
+            // 将dbTags中新加的tag添加cache，通过遍历dbTags，判断是否在cache中存在，不存在就添加到cache
+            for (String dbTag : dbTags) {
+                if (!cache.containsKey(dbTag)) {
+                    SegmentBuffer buffer = new SegmentBuffer();
+                    buffer.setKey(dbTag);
+                    Segment segment = buffer.getCurrent();
+                    segment.setValue(new AtomicLong(0));
+                    segment.setMax(0);
+                    segment.setStep(0);
+                    cache.put(dbTag, buffer);
+                    logger.info("Add tag {} from db to IdCache, SegmentBuffer {}", dbTag, buffer);
                 }
             }
-
-            // 把新加的key 都加入cache
-            for (String tag : insertTagsSet) {
-                SegmentBuffer buffer = new SegmentBuffer();
-                buffer.setKey(tag);
-                Segment segment = buffer.getCurrent();
-                segment.setValue(new AtomicLong(0));
-                segment.setMax(0);
-                segment.setStep(0);
-                cache.put(tag, buffer);
-                logger.info("Add tag {} from db to IdCache, SegmentBuffer {}", tag, buffer);
-            }
-            //cache中已失效的tags从cache删除
-            for (int i = 0; i < dbTags.size(); i++) {
-                String tmp = dbTags.get(i);
-                if (removeTagsSet.contains(tmp)) {
-                    removeTagsSet.remove(tmp);
+            List<String> cacheTags = new ArrayList<>(cache.keySet());
+            Set<String> dbTagSet = new HashSet<>(dbTags);
+            // 将cache中已失效的tag从cache删除，通过遍历cacheTags，判断是否在dbTagSet中存在，不存在说明过期，直接删除
+            for (String cacheTag : cacheTags) {
+                if (!dbTagSet.contains(cacheTag)) {
+                    cache.remove(cacheTag);
+                    logger.info("Remove tag {} from IdCache", cacheTag);
                 }
-            }
-            for (String tag : removeTagsSet) {
-                cache.remove(tag);
-                logger.info("Remove tag {} from IdCache", tag);
             }
         } catch (Exception e) {
             logger.warn("update cache from db exception", e);

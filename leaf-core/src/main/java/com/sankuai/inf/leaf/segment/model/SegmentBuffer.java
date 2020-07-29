@@ -75,8 +75,13 @@ public class SegmentBuffer {
         return currentPos;
     }
 
+    /**
+     * 使用位运算 & 代替原来的 (currentPos + 1) % 2
+     *
+     * @return int
+     */
     public int nextPos() {
-        return (currentPos + 1) % 2;
+        return (currentPos + 1) & 1;
     }
 
     public void switchPos() {
