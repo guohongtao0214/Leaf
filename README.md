@@ -126,3 +126,11 @@ public interface IDGen {
 ```
 基于MySQL的ID生成器的核心代码就是[SegmentIDGenImpl](./leaf-core/src/main/java/com/sankuai/inf/leaf/segment/SegmentIDGenImpl.java)，代码里面有明确的注释。<br>
 解析详情请见[SegmentIDGenImpl解析](./docs/SegmentIDGenImpl解析.md)。
+
+### leaf-server子项目
+service包中，SegmentService负责提供ID，主要是getId(String key)方法
+```
+public Result getId(String key) {
+    return idGen.get(key);
+}
+```
