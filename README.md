@@ -1,5 +1,5 @@
 ## Leaf
-解析美团的分布式id框架Leaf-MySQL版本
+解析美团的分布式id框架[Leaf](https://github.com/Meituan-Dianping/Leaf) MySQL版本 
 
 ## Introduction
 ### 数据库自增ID存在固有的弊端：
