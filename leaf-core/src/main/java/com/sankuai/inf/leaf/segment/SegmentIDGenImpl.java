@@ -15,6 +15,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class SegmentIDGenImpl implements IDGen {
+
     private static final Logger logger = LoggerFactory.getLogger(SegmentIDGenImpl.class);
 
     /**
